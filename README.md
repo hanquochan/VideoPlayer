@@ -20,13 +20,15 @@ So we will have maximum two players: one for play and one for preload.
     }
 
 #H4 When switch to next video
-/* check if the preload player is ready, if yes, swap player and make animation 
-If not, just use current player to load next item like normal */
-if (preloadAsset && self.preloadPlayerItem.status == AVPlayerStatusReadyToPlay)
+ Check if the preload player is ready, if yes, swap player and make animation 
+If not, just use current player to load next item like normal 
+
+    if (preloadAsset && self.preloadPlayerItem.status == AVPlayerStatusReadyToPlay)
 
 #H4 Make animation
 To make animation smooth and user can't see the gap when we switch video, the idea is create one image for last frame of current video and first image of next video and add to current player view.
 After animation time we remove these images.
+
     if (_videoAnimation == VideoAnimationFade) {
         imvNew.alpha = 0.0f;
         [UIView animateWithDuration:1.0f animations:^{
@@ -50,6 +52,7 @@ After animation time we remove these images.
     }
 
 #H4 Switch video player
+
     [self swapPlayer:&_avPlayer otherPlayer:&_preloadAVPlayer];
     [self.avPlayerLayer setPlayer:self.avPlayer];
     [self.avPlayerView.layer addSublayer:self.avPlayerLayer];

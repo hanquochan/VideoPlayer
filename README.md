@@ -7,6 +7,7 @@ The idea to make feeling like playing 1 video is:
 When play current item, we will use other AVPlayer to preload next video. 
 After that, when start to play next video, we just need check if the current preload player is ready, swap it with current player and make current player become preload player, if not just replace current video with next video like normal.
 So we will have maximum two players: one for play and one for preload.
+Other idea is use AVQueuePlayer to play list videos. It supports preload next video smoothly and has no gap.But when implement animation for switch video and for the furture we want to customize somethings, it will be hard to custom it. So i decide to keep the option 1, use two avplayer.
 
 # How did we do that
 

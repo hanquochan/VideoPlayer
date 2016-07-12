@@ -9,7 +9,9 @@
 #import "PlayerManager.h"
 #import "Utility.h"
 
-@interface PlayerManager()
+@interface PlayerManager() {
+    BOOL animating;
+}
 @property (nonatomic, strong) NSArray *listItems;
 @property (nonatomic, strong) NSString *currentPlayLink;
 @property (nonatomic, strong) UIImageView *imgViewLastVideo;
@@ -65,6 +67,7 @@
     @try {
         [self.avPlayer.currentItem removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
     } @catch (NSException *exception) {}
+    [self.avPlayerLayer removeObserver:self forKeyPath:@"readyForDisplay"];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:AVPlayerItemDidPlayToEndTimeNotification object:nil];
     // reset all objects.
     [self.avPlayer pause];
@@ -126,26 +129,33 @@
             [self.avPlayerView addSubview:imvOld];
             [self.avPlayerView addSubview:imvNew];
             [self.avPlayerLayer removeFromSuperlayer];
-#if TARGET_IPHONE_SIMULATOR
-            [self.avPlayerLayer setPlayer:self.preloadAVPlayer];
-#endif
+//#if TARGET_IPHONE_SIMULATOR
+//            [self.avPlayer pause];
+//            [self.preloadAVPlayer pause];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self swapPlayer:&_avPlayer otherPlayer:&_preloadAVPlayer];
+                [self.avPlayerLayer setPlayer:self.avPlayer];
+            });
+//#endif
             //made animation
             void (^playBlock)() = ^() {
                 [imvOld removeFromSuperview];
                 [imvNew removeFromSuperview];
-                [self swapPlayer:&_avPlayer otherPlayer:&_preloadAVPlayer];
-                [self.avPlayerLayer setPlayer:self.avPlayer];
-                [self.avPlayerView.layer addSublayer:self.avPlayerLayer];
+                if (self.avPlayerLayer.readyForDisplay) {
+                    [self.avPlayerView.layer addSublayer:self.avPlayerLayer];
+                }
                 [self.avPlayer seekToTime:kCMTimeZero];
                 [self.avPlayer play];
                 [self preloadNextItem];
             };
             if (_videoAnimation == VideoAnimationFade) {
+                animating = YES;
                 imvNew.alpha = 0.0f;
                 [UIView animateWithDuration:1.0f animations:^{
                     imvNew.alpha = 1.0f;
                     imvOld.alpha = 0.0f;
                 } completion:^(BOOL finished) {
+                    animating = NO;
                     playBlock();
                 }];
             } else if (_videoAnimation == VideoAnimationNone) {
@@ -153,11 +163,13 @@
                     playBlock();
                 });
             } else if (_videoAnimation == VideoAnimationSlide) {
+                animating = YES;
                 imvNew.frame = CGRectMake(self.containerView.frame.size.width, 0, self.containerView.frame.size.width, self.containerView.frame.size.height);
                 [UIView animateWithDuration:0.3f animations:^{
                     imvNew.frame = CGRectMake(0, 0, self.containerView.frame.size.width, self.containerView.frame.size.height);
                     imvOld.frame = CGRectMake(-self.containerView.frame.size.width, 0, self.containerView.frame.size.width, self.containerView.frame.size.height);
                 } completion:^(BOOL finished) {
+                    animating = NO;
                     playBlock();
                 }];
 
@@ -177,6 +189,7 @@
         self.avPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:self.avPlayer];
         self.avPlayerView = [[UIView alloc] initWithFrame:CGRectZero];
         [self.avPlayerView.layer addSublayer:self.avPlayerLayer];
+        [self.avPlayerLayer addObserver:self forKeyPath:@"readyForDisplay" options:0 context:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(playerItemDidReachEnd:)
                                                      name:AVPlayerItemDidPlayToEndTimeNotification
@@ -250,6 +263,14 @@
                 }
             } else {
                 NSLog(@"AAA");
+            }
+        }
+    } else if ([object isKindOfClass:[AVPlayerLayer class]]) {
+        if (_avPlayerLayer.readyForDisplay) {
+            if (!_avPlayerLayer.superlayer) {
+                if (!animating) {
+                    [self.avPlayerView.layer addSublayer:self.avPlayerLayer];
+                }
             }
         }
     }
